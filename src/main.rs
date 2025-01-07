@@ -10,6 +10,16 @@ use log::{info, warn, error};
 use simple_logger::SimpleLogger;
 use std::process::Command;
 
+fn run_command(cmd: &str, args: &[&str]) -> Result<(), Box<dyn Error>> {
+    let status = Command::new(cmd)
+        .args(args)
+        .status()?;
+    if !status.success() {
+        return Err(format!("Command {:?} {:?} failed", cmd, args).into());
+    }
+    Ok(())
+}
+
 #[derive(Debug, Clone, Copy, Hash, Eq, PartialEq)]
 enum AnnotationType {
     CopyWith,
@@ -130,16 +140,6 @@ impl BuildYamlGenerator {
     }
 
     fn format_build_yaml(&self) -> Result<(), Box<dyn Error>> {
-
-    fn run_command(cmd: &str, args: &[&str]) -> Result<(), Box<dyn Error>> {
-        let status = Command::new(cmd)
-            .args(args)
-            .status()?;
-        if !status.success() {
-            return Err(format!("Command {:?} {:?} failed", cmd, args).into());
-        }
-        Ok(())
-    }
         let content = read_to_string(&self.build_yaml_path)?;
         let formatted_content = content
             .replace('\'', "")
