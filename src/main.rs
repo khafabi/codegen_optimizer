@@ -36,6 +36,16 @@ fn run_command(cmd: &str, args: &[&str]) -> Result<(), Box<dyn Error>> {
 }
 
 fn check_flutter_installed() -> Result<(), Box<dyn Error>> {
+    // Get the PATH environment variable
+    let path_var = std::env::var("PATH").unwrap_or_else(|_| "PATH not set".to_string());
+    info!("Current PATH: {}", path_var);
+
+    // Try to find flutter in PATH
+    let flutter_path = which::which("flutter")
+        .map_err(|e| format!("Failed to find flutter in PATH: {}\nPATH: {}", e, path_var))?;
+    info!("Found flutter at: {}", flutter_path.display());
+
+    // Try running flutter --version
     run_command("flutter", &["--version"])?;
     Ok(())
 }
