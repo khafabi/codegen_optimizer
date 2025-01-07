@@ -11,12 +11,32 @@ use simple_logger::SimpleLogger;
 use std::process::Command;
 
 fn run_command(cmd: &str, args: &[&str]) -> Result<(), Box<dyn Error>> {
-    let status = Command::new(cmd)
+    let output = Command::new(cmd)
         .args(args)
-        .status()?;
-    if !status.success() {
-        return Err(format!("Command {:?} {:?} failed", cmd, args).into());
+        .output()
+        .map_err(|e| {
+            if e.kind() == std::io::ErrorKind::NotFound {
+                format!("Command '{}' not found. Please ensure it is installed and in your PATH", cmd)
+            } else {
+                format!("Failed to execute command '{}': {}", cmd, e)
+            }
+        })?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(format!(
+            "Command '{} {}' failed with status {}: {}",
+            cmd,
+            args.join(" "),
+            output.status,
+            stderr
+        ).into());
     }
+    Ok(())
+}
+
+fn check_flutter_installed() -> Result<(), Box<dyn Error>> {
+    run_command("flutter", &["--version"])?;
     Ok(())
 }
 
@@ -191,6 +211,14 @@ impl BuildYamlGenerator {
 
 fn main() -> Result<(), Box<dyn Error>> {
     SimpleLogger::new().init().unwrap();
+
+    // Check if flutter is installed before proceeding
+    if let Err(e) = check_flutter_installed() {
+        error!("{}", e);
+        error!("Please install Flutter and ensure it's in your PATH before running this tool.");
+        error!("You can download Flutter from: https://flutter.dev");
+        return Err(e);
+    }
 
     let current_dir = std::env::current_dir()?;
     let generator = BuildYamlGenerator::new(current_dir);
