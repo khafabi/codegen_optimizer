@@ -8,6 +8,7 @@ use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
 use log::{info, warn, error};
 use simple_logger::SimpleLogger;
+use std::process::Command;
 
 #[derive(Debug, Clone, Copy, Hash, Eq, PartialEq)]
 enum AnnotationType {
@@ -129,6 +130,16 @@ impl BuildYamlGenerator {
     }
 
     fn format_build_yaml(&self) -> Result<(), Box<dyn Error>> {
+
+    fn run_command(cmd: &str, args: &[&str]) -> Result<(), Box<dyn Error>> {
+        let status = Command::new(cmd)
+            .args(args)
+            .status()?;
+        if !status.success() {
+            return Err(format!("Command {:?} {:?} failed", cmd, args).into());
+        }
+        Ok(())
+    }
         let content = read_to_string(&self.build_yaml_path)?;
         let formatted_content = content
             .replace('\'', "")
@@ -184,7 +195,14 @@ fn main() -> Result<(), Box<dyn Error>> {
     let current_dir = std::env::current_dir()?;
     let generator = BuildYamlGenerator::new(current_dir);
     match generator.update_build_yaml() {
-        Ok(_) => Ok(()),
+        Ok(_) => {
+            // Run Flutter commands sequentially after update_build_yaml
+            run_command("flutter", &["clean"])?;
+            run_command("flutter", &["pub", "upgrade"])?;
+            run_command("flutter", &["pub", "get"])?;
+            run_command("flutter", &["pub", "run", "build_runner", "build", "--delete-conflicting-outputs"])?;
+            Ok(())
+        },
         Err(e) => {
             error!("Failed to generate build.yaml: {}", e);
             Err(e)
