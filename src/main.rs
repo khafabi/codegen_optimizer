@@ -11,6 +11,10 @@ use simple_logger::SimpleLogger;
 use std::process::Command;
 
 fn run_command(cmd: &str, args: &[&str]) -> Result<(), Box<dyn Error>> {
+    let full_command = format!("{} {}", cmd, args.join(" "));
+    info!("Executing: {}", full_command);
+    
+    let start = std::time::Instant::now();
     let output = Command::new(cmd)
         .args(args)
         .output()
@@ -21,6 +25,9 @@ fn run_command(cmd: &str, args: &[&str]) -> Result<(), Box<dyn Error>> {
                 format!("Failed to execute command '{}': {}", cmd, e)
             }
         })?;
+
+    let duration = start.elapsed();
+    info!("Command completed in {:.2} seconds", duration.as_secs_f64());
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
