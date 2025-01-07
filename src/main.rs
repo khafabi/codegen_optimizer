@@ -45,8 +45,15 @@ fn check_flutter_installed() -> Result<(), Box<dyn Error>> {
         .map_err(|e| format!("Failed to find flutter in PATH: {}\nPATH: {}", e, path_var))?;
     info!("Found flutter at: {}", flutter_path.display());
 
+    // On Windows, we need to use flutter.bat
+    let flutter_cmd = if cfg!(windows) {
+        "flutter.bat"
+    } else {
+        "flutter"
+    };
+    
     // Try running flutter --version
-    run_command("flutter", &["--version"])?;
+    run_command(flutter_cmd, &["--version"])?;
     Ok(())
 }
 
@@ -235,10 +242,16 @@ fn main() -> Result<(), Box<dyn Error>> {
     match generator.update_build_yaml() {
         Ok(_) => {
             // Run Flutter commands sequentially after update_build_yaml
-            run_command("flutter", &["clean"])?;
-            run_command("flutter", &["pub", "upgrade"])?;
-            run_command("flutter", &["pub", "get"])?;
-            run_command("flutter", &["pub", "run", "build_runner", "build", "--delete-conflicting-outputs"])?;
+            let flutter_cmd = if cfg!(windows) {
+                "flutter.bat"
+            } else {
+                "flutter"
+            };
+            
+            run_command(flutter_cmd, &["clean"])?;
+            run_command(flutter_cmd, &["pub", "upgrade"])?;
+            run_command(flutter_cmd, &["pub", "get"])?;
+            run_command(flutter_cmd, &["pub", "run", "build_runner", "build", "--delete-conflicting-outputs"])?;
             Ok(())
         },
         Err(e) => {
